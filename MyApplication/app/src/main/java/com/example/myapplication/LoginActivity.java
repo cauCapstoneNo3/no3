@@ -18,16 +18,18 @@ public class LoginActivity extends AppCompatActivity {
         ActionBar actionBar = getSupportActionBar();
         actionBar.setTitle("Login page");
 
-        // add login check function
+        // add login check function definition
 
 
         Button login_btn = (Button) findViewById(R.id.login_button);
         login_btn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
+                // add login check function declaration + if TRUE
                 Intent intent = new Intent(LoginActivity.this, CalendarActivity.class);
                 startActivity(intent);
                 finish();
+
             }
         });
     }
