@@ -2,8 +2,10 @@ package com.example.myapplication;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationManagerCompat;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -21,7 +23,7 @@ public class CalendarActivity extends AppCompatActivity {
     public int today_year = cal.get(Calendar.YEAR);
     public int today_month = cal.get(Calendar.MONTH);
     public int today_day = cal.get(Calendar.DATE);;
-
+    public int cnt_num;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +35,7 @@ public class CalendarActivity extends AppCompatActivity {
         stop_Btn = findViewById(R.id.stop_Btn);
         textview = findViewById(R.id.textView);
         Intent intent2 = new Intent(getApplicationContext(), map_service.class);
+        //mNotificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
 
         calendarView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
             @Override
@@ -52,10 +55,12 @@ public class CalendarActivity extends AppCompatActivity {
                             map_Btn.setVisibility(View.INVISIBLE);
                             stop_Btn.setVisibility(View.INVISIBLE);
                         } else if (dayOfMonth == today_day){
-                            // if recording ( by checking today database) , SHOW
+                            //
+                            // if already recording today diary ( by checking existance of today database), SHOW
                             // record_Btn.setVisibility(View.INVISIBLE);
                             // map_Btn.setVisibility(View.VISIBLE);
-                            // stop_Btn.setVisibility(View.VISIBLE);
+                            // stop_Btn.setVisibility(View.VISIBLE); , else
+                            //
                             textview.setText("");
                             record_Btn.setVisibility(View.VISIBLE);
                             map_Btn.setVisibility(View.INVISIBLE);
@@ -79,11 +84,11 @@ public class CalendarActivity extends AppCompatActivity {
         record_Btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(view.getId() == R.id.record_Btn){
-                    intent2.putExtra(String.valueOf(map_service.CHECK), "true");
-                } else {
-                    intent2.putExtra(String.valueOf(map_service.CHECK), "false");
-                }
+//                if(view.getId() == R.id.record_Btn){
+//                    intent2.putExtra(String.valueOf(map_service.CHECK), cnt_num);
+//                } else {
+//                    intent2.putExtra(String.valueOf(map_service.CHECK), "false");
+//                }
                 record_Btn.setVisibility(View.INVISIBLE);
                 map_Btn.setVisibility(View.VISIBLE);
                 stop_Btn.setVisibility(View.VISIBLE);
@@ -93,14 +98,15 @@ public class CalendarActivity extends AppCompatActivity {
         map_Btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //
                 // show data from sqllite as Fragment??
+                //
                 textview.setText("show map,,,");
             }
         });
         stop_Btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //intent2.putExtra(String.valueOf(map_service.CHECK), false);
                 textview.setText("stop map");
                 map_Btn.setVisibility(View.VISIBLE);
                 stop_Btn.setVisibility(View.INVISIBLE);
@@ -110,31 +116,3 @@ public class CalendarActivity extends AppCompatActivity {
     }
 
 }
-//    @SuppressLint("WrongConstant")
-//    public void removeDiary(String readDay) {
-//        FileOutputStream fos = null;
-//
-//        try {
-//            fos = openFileOutput(readDay, MODE_NO_LOCALIZED_COLLATORS);
-//            String content = "";
-//            fos.write((content).getBytes());
-//            fos.close();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-//    @SuppressLint("WrongConstant")
-//    public void saveDiary(String readDay){
-//        FileOutputStream fos=null;
-//
-//        try{
-//            fos=openFileOutput(readDay,MODE_NO_LOCALIZED_COLLATORS);
-//            fos.close();
-//        }catch (Exception e){
-//            e.printStackTrace();
-//        }
-//    }
-//
-//
-//}
