@@ -4,14 +4,17 @@ plugins {
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.3"
+    //buildToolsVersion "30.0.3"
+    buildToolsVersion "30.0.2"
 
     defaultConfig {
         applicationId "com.example.myapplication"
         minSdkVersion 19
-        targetSdkVersion 30
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
+        // add multiDex
+        multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,7 +32,12 @@ android {
 }
 
 dependencies {
-
+    //added room lib
+    def room_version = "2.2.6"
+    implementation "androidx.room:room-runtime:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version"
+    //added gms:play-service for Fused Location Provider API
+    implementation 'com.google.android.gms:play-services:11.8.0'
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'com.google.android.material:material:1.1.0'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
