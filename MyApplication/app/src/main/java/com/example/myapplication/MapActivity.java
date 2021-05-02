@@ -52,15 +52,14 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
         @Override
         protected void onCreate (Bundle savedInstanceState){
             super.onCreate(savedInstanceState);
-//            setContentView(R.layout.activity_main);
             setContentView(R.layout.activity_map);
-
-            LinearLayout linearLayoutTmap = (LinearLayout) findViewById((R.id.linearLayoutTmap));
+            LinearLayout linearLayoutTmap = (LinearLayout)findViewById(R.id.linearLayoutTmap);
             TMapView tMapView = new TMapView(this);
-            tMapView.setZoomLevel(16);
+
             //tMapView.setTrackingMode(true);
             tMapView.setSKTMapApiKey("l7xxb3fcc775f3cf452ea70f97fcfa0d5367");
             linearLayoutTmap.addView(tMapView);
+            tMapView.setZoomLevel(16);
 
             // <추후> point들 시간대 별로 받는 좌표로 수정
             // TMapGpsManager tmapgps = new TMapGpsManager(this);
