@@ -11,12 +11,14 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -25,6 +27,8 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.room.PrimaryKey;
+import androidx.room.Room;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.ApiException;
@@ -63,20 +67,12 @@ import static android.telephony.CellLocation.requestLocationUpdate;
 public class map_service extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public static boolean CHECK = true;
     Calendar cal = Calendar.getInstance();
-
-    private class timeData {
-        public int today_year = cal.get(Calendar.YEAR);
-        public int today_month = cal.get(Calendar.MONTH);
-        public int today_day = cal.get(Calendar.DATE);
-    }
-
+    private String todayDate;
     private boolean areUTracking = true;
-    private TMapGpsManager tmapgps = null;
-    private TMapView tmapview = null;
     // 좌표, 마커, 마커id arr
-    private ArrayList<TMapPoint> arrMarker = new ArrayList<TMapPoint>();
-    private ArrayList<String> arrMarkerID = new ArrayList<String>();
-    private ArrayList<MapActivity.recordPoint> arrPoint = new ArrayList<MapActivity.recordPoint>();
+    public static ArrayList<Double> LA = new ArrayList<>();
+    public static ArrayList<Double> LO = new ArrayList<>();
+    public static int integer_i=0;
 
     private NotificationManager notificationManager = null;
 
@@ -85,26 +81,18 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
 
-    //added 0501
     private Context context;
     private boolean stopService = false;
     private String latitude = "0.0", longitude = "0.0";
     protected GoogleApiClient googleApiClient;
     protected LocationSettingsRequest locationSettingsRequest;
     private SettingsClient settingsClient;
-    private Location currentLocation;
-//
-//    @Override
-//    public void onLocationChanged(Location location) {
-//        Log.d("service", "new location!");
-//        if (location != null) {
-//            callAPI(String.valueOf(location.getLatitude()), String.valueOf(location.getLongitude()));
-//        }
-//    }
+    Location currentLocation;
+    public locationDatabase tmpDB;
+    public locationDao mDao;
 
-
-    //System.out.println((LocationServices.FusedLocationApi.requestLocationUpdates(fusedLocationClient, locationRequest, (com.google.android.gms.location.LocationListener) this).toString()));
-    //System.out.println((LocationServices.FusedLocationApi.requestLocationUpdates(fusedLocationClient, locationRequest, (com.google.android.gms.location.LocationListener) this)).toString());
+    PowerManager powerManager;
+    PowerManager.WakeLock wakeLock;
 
 //        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
 //        builder.addLocationRequest(locationRequest);
@@ -140,15 +128,6 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
 //
 //        });
 
-
-//        }).addOnCanceledListener(new OnCanceledListener() {
-//            @Override
-//            public void onCanceled() {
-//                Log.e("finding location cancaled", "checkLocationSettings -> onCanceled");
-//            }
-//        });
-
-
     @Override
     public void onConnectionSuspended(int i) {
         Log.d("service", "suspended to connect to api");
@@ -160,31 +139,23 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
         Log.d("service", "failed to connect to api");
     }
 
-//    private void buildLocationCallBack() {
-//        locationCallback = new LocationCallback() {
-//            @Override
-//            public void onLocationResult(LocationResult locationResult) {
-//                for (Location location : locationResult.getLocations()) {
-//                    String latitude = String.valueOf(location.getLatitude());
-//                    String longitude = String.valueOf(location.getLongitude());
-//                }
-//            }
-//        };
-//    }
-
 
     @Override
     public void onCreate() {
         super.onCreate();
-        //TMapView tMapView = new TMapView(this);
-        //tMapView.setSKTMapApiKey("l7xxb3fcc775f3cf452ea70f97fcfa0d5367");
 
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"MyApp::myapplication");
+
+        todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
+        locationDatabase tmpDB = locationDatabase.getAppDatabase(this);
+        //tmpDB.locationDao().getAll();
+        mDao = tmpDB.locationDao();
         locationRequest = new LocationRequest();
-        locationRequest.setInterval(10000);
-        locationRequest.setFastestInterval(9000);
+        locationRequest.setInterval(20000);
+        locationRequest.setFastestInterval(19000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setSmallestDisplacement(1);
-
+        //locationRequest.setSmallestDisplacement(1);
         ffusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationCallback = new LocationCallback() {
             @Override
@@ -192,13 +163,14 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
                 super.onLocationResult(locationResult);
             }
         };
-
-
         fusedLocationClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks((GoogleApiClient.ConnectionCallbacks) this)
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
+
+        Intent notificationIntent = new Intent(this, CalendarActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationCompat.Builder notifier = null;
@@ -215,27 +187,21 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
         notifier.setSmallIcon(android.R.drawable.btn_star);
         notifier.setContentTitle("발자취");
         notifier.setContentText("백그라운드에서 위치 정보 액세스 중");
+        notifier.setContentIntent(pendingIntent);
+        //notificationManager.notify(3385, notifier.build());
+        startForeground(4885, notifier.build());
 
-        notificationManager.notify(3385, notifier.build());
 
+        new Thread(new threadGet(tmpDB.locationDao())).start();
 
         Log.d("StartService", "onCreate()");
     }
-
 
     //@RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public int onStartCommand(Intent intent, int i, int startId) {
         Log.d("StartService", "onStartCommand()");
-
-        //Timer Scheduled = new Timer();
-        //GetLocation addLocation = new GetLocation();
-        //
-        // how to access location info by tmap? how about use android gps to locate
-        //
-
-        // added 0501
-        //fusedLocationClient.connect();
+        wakeLock.acquire();
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
@@ -244,77 +210,55 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
-            return START_NOT_STICKY;
+            return START_STICKY;
         }
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 super.onLocationResult(locationResult);
-                currentLocation= locationResult.getLastLocation();
+                currentLocation= (Location) locationResult.getLocations().get(locationResult.getLocations().size() - 1);
+                //currentLocation= locationResult.getLastLocation();
 
-                if (currentLocation == null)   //first gps triger.
+                if (currentLocation == null) {
                     Log.d("service","err in onLocationResult");
-                else{
+                } else {
+                    locationEntity entity = new locationEntity();
+                    entity.setLongitude(currentLocation.getLongitude());;
+                    entity.setLatitude(currentLocation.getLatitude());
+                    entity.setToday(todayDate);
+                    Log.d("service","threadAsync");
                     Log.d("service", String.valueOf(currentLocation.getLatitude()));
                     Log.d("service", String.valueOf(currentLocation.getLongitude()));
+                    new insertAsyncTask(mDao).execute(entity);
+                    //new Thread(new threadInsert(tmpDB.locationDao(), currentLocation)).start();
                 }
 
-
-//
 //                finaldist = BigDecimal.valueOf(distancetracking/1000);
 //                Intent i = new Intent("location_update");
 //                i.putExtra("coordinates", finaldist);
 //                sendBroadcast(i);
 //                notification(finaldist+ " Km");
-
             }
         };
-        ffusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+        ffusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
 
-
-//
-//        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            // TODO: Consider calling
-//            //    ActivityCompat#requestPermissions
-//            Log.d("StartService", "==Error occurs in starting GETTING LOCATION");
-//            // here to request the missing permissions, and then overriding
-//            // public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//            //                                          int[] grantResults)
-//            // to handle the case where the user grants the permission. See the documentation
-//            // for ActivityCompat#requestPermissions for more details.
-//            return START_NOT_STICKY;
-//        }
-
-        //fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-
-
-//        while(CHECK){
-//            Scheduled.scheduleAtFixedRate(addLocation,0, 10000);}
-
-        //
-        // while loop as thread??
-        //
-        // tmapview.setOnCalloutRightButtonClickListener();
-        // ADD 'marker determining function'
-        //
-
-        //Scheduled.cancel();
-        //tmapgps.CloseGps();
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         Log.d("EndService", "onDestroy()");
         CHECK = false;
-        //tmapgps.CloseGps();
+        new Thread(new threadExit(mDao)).start();
+        //tmpDB.destroyDatabaseInstance();
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(3385);
+        wakeLock.release();
 
-//        if (fusedLocationClient != null) {
-//            fusedLocationClient.removeLocationUpdates(locationCallback);
-//            Log.d("END_location_searching", "fusedlocationclient removed");
-//        }
+        if (ffusedLocationClient != null) {
+            ffusedLocationClient.removeLocationUpdates(locationCallback);
+            Log.d("END_location_searching", "fusedlocationclient removed");
+        }
         super.onDestroy();
     }
 
@@ -325,15 +269,6 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
 
         //throw new UnsupportedOperationException("Not yet implemented");
         return null;
-    }
-
-    class GetLocation extends TimerTask {
-        public void run() {
-            //TMapPoint tmp = tmapgps.getLocation();
-            //
-            // ADD this data to APP db
-            //
-        }
     }
 
     @Override
@@ -350,30 +285,75 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
             return;
         }
         Log.d("service", "Connected to Google API");
+    }
 
-
-//        ffusedLocationClient.getLastLocation()
-//                .addOnCompleteListener(new OnCompleteListener<Location>() {
-//                    @Override
-//                    public void onComplete(@NonNull Task<Location> task) {
-//                        try {
-//                            //if (task.isSuccessful() && task.getResult() != null) {
-//                            if (task.getResult() != null) {
-//                                //currentLocation = task.getResult();
-//                                Log.d("service", String.valueOf(task.getResult().getLongitude()));
-//                                Log.d("service", String.valueOf(task.getResult().getLatitude()));
-//
-//                            } else {
-//                                Log.w("service", "Failed to get location.");
-//                            }
-//                        } catch (SecurityException e) {
-//                            Log.d("service", "lost location permission" + e);
-//                        }
-//                    }
-//                });
+    public void setMarker(int inputID, double longitude, double latitude){
 
     }
+
+    static class insertAsyncTask extends AsyncTask<locationEntity,Void,Void>{
+        Calendar cal = Calendar.getInstance();
+        private locationDao Dao;
+        private Location location;
+        private String todayDate;
+        insertAsyncTask(locationDao lolo){
+            todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
+            this.Dao = lolo;
+        }
+        @Override
+        protected Void doInBackground(locationEntity... locationEntities) {
+            if (Dao != null) {
+                Dao.insertData(locationEntities[0]);
+                Log.d("service","in async doinbackground");
+            }
+            return null;
+        }
+    }
+
+    class threadGet implements Runnable{
+        Context context;
+        Calendar cal = Calendar.getInstance();
+        private locationDatabase tmpDB;
+        private locationDao Dao;
+        private String todayDate;
+        public threadGet(locationDao instance){
+            this.Dao = instance;
+            todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
+        }
+        public void run(){
+            if (Dao.getData(todayDate)==null){
+                locationEntity tmp = new locationEntity();
+                tmp.setLongitude(1.0);;
+                tmp.setLatitude(1.0);
+                tmp.setToday(todayDate);
+                Dao.insertData(tmp);
+                Log.d("service","threadGet");
+            }
+        }
+    }
+
+    class threadExit implements Runnable{
+        Context context;
+        Calendar cal = Calendar.getInstance();
+        private locationDao Dao;
+        private String todayDate;
+        private Location location;
+        public threadExit(locationDao instance){
+            todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
+            this.location = location;
+            this.Dao = instance;
+        }
+        public void run(){
+            locationEntity tmp = new locationEntity();
+            tmp.setLongitude(1.0);;
+            tmp.setLatitude(1.0);
+            tmp.setToday(todayDate);
+            Dao.insertData(tmp);
+        }
+    }
 }
+
+
 
 
 
