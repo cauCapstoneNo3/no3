@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -25,9 +26,11 @@ import java.io.FileInputStream;
 import java.security.Permission;
 import java.util.Calendar;
 
+import static androidx.legacy.content.WakefulBroadcastReceiver.startWakefulService;
+
 public class CalendarActivity extends AppCompatActivity {
     public CalendarView calendarView;
-    public Button map_Btn, stop_Btn, record_Btn;
+    public Button map_Btn, stop_Btn, record_Btn, restart_Btn;
     public TextView textview;
     Calendar cal = Calendar.getInstance();
     public int today_year = cal.get(Calendar.YEAR);
@@ -35,11 +38,12 @@ public class CalendarActivity extends AppCompatActivity {
     public int today_day = cal.get(Calendar.DATE);;
     public int cnt_num;
     public static final int PERMISSION_CHECK = 3333;
+    public HandlerThread locationHandler;
+    public Handler handler;
     private String[] PERMISSIONS ={
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION
     };
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +53,7 @@ public class CalendarActivity extends AppCompatActivity {
         record_Btn = findViewById(R.id.record_Btn);
         map_Btn = findViewById(R.id.map_Btn);
         stop_Btn = findViewById(R.id.stop_Btn);
+        restart_Btn = findViewById(R.id.restart_Btn);
         textview = findViewById(R.id.textView);
         Intent intent1 = new Intent(getApplicationContext(), MapActivity.class);
         Intent intent2 = new Intent(getApplicationContext(), map_service.class);
@@ -77,6 +82,8 @@ public class CalendarActivity extends AppCompatActivity {
                             // record_Btn.setVisibility(View.INVISIBLE);
                             // map_Btn.setVisibility(View.VISIBLE);
                             // stop_Btn.setVisibility(View.VISIBLE); , else
+                            //
+                            // AND check service is already running for determine show whitch button RESTART / STOP to show
                             //
                             textview.setText("");
                             record_Btn.setVisibility(View.VISIBLE);
@@ -108,36 +115,72 @@ public class CalendarActivity extends AppCompatActivity {
 //                    intent2.putExtra(String.valueOf(map_service.CHECK), "false");
 //                }
                 ActivityCompat.requestPermissions(CalendarActivity.this , new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_CHECK);
-
-
-
                 record_Btn.setVisibility(View.INVISIBLE);
                 map_Btn.setVisibility(View.VISIBLE);
                 stop_Btn.setVisibility(View.VISIBLE);
-                createLocationHandler();
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent2);
+                } else {
+                    startService(intent2);
+                }
                 //startService(intent2);
             }
         });
         map_Btn.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
                 //
                 // show data from sqllite as Fragment??
                 //
                 textview.setText("show map,,,");
+                //handler.removeCallbacksAndMessages(null);
+                //handler.sendEmptyMessage(0);
                 startActivity(intent1);
+                //finish();
             }
         });
         stop_Btn.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
                 textview.setText("stop map");
                 map_Btn.setVisibility(View.VISIBLE);
                 stop_Btn.setVisibility(View.INVISIBLE);
-                stopService(intent2);
+                restart_Btn.setVisibility(View.VISIBLE);
+                if(isMyServiceRunning(map_service.class)){
+                    stopService(intent2);
+                    //getApplicationContext().startService(new Intent(getApplicationContext(), map_service.class));
+                }
+                //stopService(intent2);
+            }
+        });
+        restart_Btn.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.M)
+            @Override
+            public void onClick(View view) {
+                textview.setText("restart map");
+                map_Btn.setVisibility(View.VISIBLE);
+                restart_Btn.setVisibility(View.INVISIBLE);
+                stop_Btn.setVisibility(View.VISIBLE);
+                if(!isMyServiceRunning(map_service.class)){
+                    //startWakefulService(getApplicationContext(), intent2);
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent2);
+                    } else {
+                        startService(intent2);
+                    }
+                    //startService(intent2);
+
+                    //getApplicationContext().startService(new Intent(getApplicationContext(), map_service.class));
+                }
+                //stopService(intent2);
             }
         });
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults){
         switch (requestCode){
@@ -148,26 +191,23 @@ public class CalendarActivity extends AppCompatActivity {
         }
     }
 
-
     public void createLocationHandler(){
-        HandlerThread locationHandler = new HandlerThread("LocationHandler"); //Creates a new handler thread
-        locationHandler.start(); //Starts the thread
-        Handler handler = new Handler(locationHandler.getLooper()); //Get the looper from the handler thread
-        handler.postDelayed(new Runnable() {//Run the runnable only after the given time
+        locationHandler = new HandlerThread("LocationHandler");
+        locationHandler.start();
+        //Handler handler = new Handler(locationHandler.getLooper());
+        handler = new Handler();
+        handler.postDelayed(new Runnable() {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void run() {
-                //Check if the location service is running, if its not. lets start it!
+                //Check if service is running
                 if(!isMyServiceRunning(map_service.class)){
                     getApplicationContext().startService(new Intent(getApplicationContext(), map_service.class));
                 }
-                ////Requests a new location from the location service(Feel like it could be done in a less static way)
-                //LocationService.requestNewLocation();
-                //createLocationHandler();//Call the create location handler again, this will not be added to the stack because of the looper.
-            }
-        }, 1000);//Set the delay to be 10 seconds, 1 second = 1000 milliseconds
-    }
 
+            }
+        }, 1000);
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private boolean isMyServiceRunning(Class<?> serviceClass) {
