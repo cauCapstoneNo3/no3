@@ -19,11 +19,18 @@ public interface locationDao {
     List<locationEntity> getData(String input_day);
     //LiveData<List<locationEntity>> getData(String input_day);
 
+    @Query("SELECT * FROM locationEntity WHERE today LIKE :input_day AND markerFlag == :tmp")
+    List<locationEntity> getData(String input_day, int tmp);
+
     @Insert
     public void insertData(locationEntity data);
 
     @Update
     public void UpdateData(locationEntity data);
+
+
+    @Query("UPDATE locationEntity SET markerFlag = :tmp WHERE today LIKE :input_day AND ID == :input_id")
+    public void UpdateData(int input_id, String input_day, int tmp);
 
     @Query("INSERT INTO locationEntity(ID, today, latitude, longitude) VALUES (:id,:input_day,:la, :lo)")
     public void insertData(int id, Double la, Double lo, String input_day);
