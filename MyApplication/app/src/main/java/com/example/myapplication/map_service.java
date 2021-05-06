@@ -1,21 +1,16 @@
 package com.example.myapplication;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -23,44 +18,26 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.room.PrimaryKey;
-import androidx.room.Room;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
+import androidx.room.Dao;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResolvableApiException;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResponse;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.location.SettingsClient;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
-import com.skt.Tmap.TMapGpsManager;
-import com.skt.Tmap.TMapPoint;
-import com.skt.Tmap.TMapView;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Executor;
-
-import static android.telephony.CellLocation.requestLocationUpdate;
+import java.util.List;
 
 //public class map_service extends Service implements TMapGpsManager.onLocationChangedCallback {
 //public class map_service extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,LocationListener {
@@ -70,6 +47,7 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
     private String todayDate;
     private boolean areUTracking = true;
     // 좌표, 마커, 마커id arr
+    public static ArrayList<locationEntity> MC;
     public static ArrayList<Double> LA = new ArrayList<>();
     public static ArrayList<Double> LO = new ArrayList<>();
     public static int integer_i=0;
@@ -147,6 +125,7 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"MyApp::myapplication");
 
+        MC = new ArrayList<locationEntity>();
         todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
         locationDatabase tmpDB = locationDatabase.getAppDatabase(this);
         //tmpDB.locationDao().getAll();
@@ -157,12 +136,6 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         //locationRequest.setSmallestDisplacement(1);
         ffusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-            }
-        };
         fusedLocationClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks((GoogleApiClient.ConnectionCallbacks) this)
                 .addOnConnectionFailedListener(this)
@@ -230,6 +203,7 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
                     Log.d("service", String.valueOf(currentLocation.getLatitude()));
                     Log.d("service", String.valueOf(currentLocation.getLongitude()));
                     new insertAsyncTask(mDao).execute(entity);
+                    //new Thread(new markerThread(mDao)).start();
                     //new Thread(new threadInsert(tmpDB.locationDao(), currentLocation)).start();
                 }
 
@@ -287,8 +261,110 @@ public class map_service extends Service implements GoogleApiClient.ConnectionCa
         Log.d("service", "Connected to Google API");
     }
 
-    public void setMarker(int inputID, double longitude, double latitude){
+//    public void setMarker(locationDao dao, locationEntity tmpEntity){
+//        int tmpCnt = MC.size();
+//        int accumulator =0;
+//        double firstMeanLongitude =0.0;
+//        double secondMeanLongitude =0.0;
+//        double firstMeanLatitude = 0.0;
+//        double secondMeanLatitude = 0.0;
+//        if (MC.isEmpty()) {
+//            MC.add(tmpEntity);
+//        } else if (tmpCnt <= 29){
+//            Log.d("service","MarkerQueue"+tmpCnt);
+//            MC.add(tmpEntity);
+//        } else {
+//            MC.set(accumulator, tmpEntity);
+//            accumulator++;
+//            if(accumulator==29) accumulator=0;
+//        }
+//
+//        if(tmpCnt==30){
+//            for(int i=0;i<15;i++) {
+//                firstMeanLongitude += MC.get(i).getLongitude();
+//                firstMeanLatitude += MC.get(i).getLatitude();
+//            }
+//            for(int i=15;i<30;i++) {
+//                secondMeanLongitude += MC.get(i).getLongitude();
+//                secondMeanLatitude += MC.get(i).getLatitude();
+//            }
+//            firstMeanLatitude /= 15; secondMeanLatitude /= 15; firstMeanLongitude /= 15; secondMeanLongitude /= 15;
+//            double distance = getDistance(firstMeanLatitude, firstMeanLongitude, secondMeanLatitude, secondMeanLongitude);
+//            Log.d("distance"," : "+distance);
+//            //if(distance <100) new Thread(new markerThread(dao, MC.get(29)));
+//            if(distance <100) new Thread(new markerThread(dao, tmpEntity)).start();
+//        }
+//    }
 
+    public double getDistance(double firstMeanLatitude, double firstMeanLongitude, double secondMeanLatitude, double secondMeanLongitude){
+        double thetaLongitude = firstMeanLongitude - secondMeanLongitude;
+        double distance = Math.sin(Math.toRadians(firstMeanLatitude))*Math.sin(Math.toRadians(secondMeanLatitude))+
+                Math.cos(Math.toRadians(firstMeanLatitude))*Math.cos(Math.toRadians(secondMeanLatitude))*Math.cos(Math.toRadians(thetaLongitude));
+        distance = Math.acos(distance); distance = Math.toDegrees(distance); distance = distance*60*1.1515*1.609344;
+        return distance;
+    }
+
+    class markerThread implements Runnable{
+        locationEntity tmpEntity;
+        locationDao dao;
+        int tmpCnt;
+        int accumulator =0;
+        double firstMeanLongitude =0.0;
+        double secondMeanLongitude =0.0;
+        double firstMeanLatitude = 0.0;
+        double secondMeanLatitude = 0.0;
+        private boolean checkExit = true;
+        private double distaneBetweenMarker = 0.0;
+        int num =0;
+        public markerThread(locationDao dao){
+            this.dao = dao;
+            this.tmpEntity = tmpEntity;
+        }
+        @Override
+        public void run() {
+            Log.d("service","fucking marker decision");
+            LiveData<List<locationEntity>> spareMarkerList = dao.getAll();
+            spareMarkerList.observeForever((Observer<? super List<locationEntity>>) this);
+            spareMarkerList.observe((LifecycleOwner) this, new Observer<List<locationEntity>>() {
+                @Override
+                public void onChanged(List<locationEntity> locationEntities) {
+                    int tmpCnt = MC.size();
+                    if (MC.isEmpty()) {
+                        MC.add(tmpEntity);
+                    } else if (tmpCnt <= 29){
+                        Log.d("service","MarkerQueue"+tmpCnt);
+                        MC.add(tmpEntity);
+                    } else {
+                        MC.set(accumulator, tmpEntity);
+                        accumulator++;
+                        if(accumulator==29) accumulator=0;
+                    }
+                    if(tmpCnt==30){
+                        for(int i=0;i<15;i++) {
+                            firstMeanLongitude += MC.get(i).getLongitude();
+                            firstMeanLatitude += MC.get(i).getLatitude();
+                        }
+                        for(int i=15;i<30;i++) {
+                            secondMeanLongitude += MC.get(i).getLongitude();
+                            secondMeanLatitude += MC.get(i).getLatitude();
+                        }
+                        firstMeanLatitude /= 15; secondMeanLatitude /= 15; firstMeanLongitude /= 15; secondMeanLongitude /= 15;
+                        double distance = getDistance(firstMeanLatitude, firstMeanLongitude, secondMeanLatitude, secondMeanLongitude);
+                        Log.d("distance"," : "+distance);
+                        //if(distance <100) new Thread(new markerThread(dao, MC.get(29)));
+                        //if(distance <100) new Thread(new markerThread(dao, tmpEntity)).start();
+                        if(distance < 100){
+                            locationEntities.get(0).setMarkerFlag(1);
+                            dao.UpdateData(locationEntities.get(0));
+//                            for (locationEntity tmpselect : dao.getData(todayDate,1)) {
+//                                distaneBetweenMarker = getDistance(locationEntities.get(0).getLatitude(), locationEntities.get(0).getLongitude(), tmpselect.getLatitude(), tmpselect.getLongitude());
+//                                if (distaneBetweenMarker >100) dao.UpdateData(locationEntities.get(0));
+//                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     static class insertAsyncTask extends AsyncTask<locationEntity,Void,Void>{
