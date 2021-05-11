@@ -214,6 +214,12 @@ public class CalendarActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        //block backbutton
+        return;
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults){
         switch (requestCode){
             case PERMISSION_CHECK:

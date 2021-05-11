@@ -34,6 +34,8 @@ public class locationEntity {
 
     private String textData = null;
 
+    private int alreadyCHK = 0;
+
     // images 되면 이거 어떻게 하지? datapath 저장하는 방식으로 바꿔?
     @ColumnInfo(typeAffinity = ColumnInfo.BLOB)
     private byte[] image = null;
@@ -70,7 +72,9 @@ public class locationEntity {
 
     public String getTextData(){ return this.textData;}
 
-    public int getMarkerFlag(){ return markerFlag;}
+    public int getMarkerFlag(){ return this.markerFlag;}
+
+    public int getAlreadyCHK(){return this.alreadyCHK;}
 
     public void setToday(String inputtoday){
         this.today = inputtoday;
@@ -89,4 +93,6 @@ public class locationEntity {
     public void setTextData(String inputtextData){ this.textData = inputtextData; }
 
     public void setMarkerFlag(int inputFlag){ this.markerFlag = inputFlag; }
+
+    public void setAlreadyCHK(int inputCHK){ this.alreadyCHK = inputCHK; }
 }
