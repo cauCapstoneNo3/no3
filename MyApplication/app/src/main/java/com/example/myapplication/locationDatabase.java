@@ -6,7 +6,7 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(version =4, entities = {locationEntity.class}, exportSchema = false)
+@Database(version =6, entities = {locationEntity.class}, exportSchema = false)
 public abstract class locationDatabase extends RoomDatabase {
     // call db instance : Room.databaseBuilder() or Room.inMemoryDatabaseBuilder()
     private static locationDatabase INSTANCE;
@@ -19,7 +19,6 @@ public abstract class locationDatabase extends RoomDatabase {
                     .build();
         }
         return INSTANCE;
-
     }
 
     public static void destroyDatabaseInstance(){
