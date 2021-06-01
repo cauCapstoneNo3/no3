@@ -119,17 +119,17 @@ public class registerActivity extends AppCompatActivity {
                             boolean success = jsonObject.getBoolean("success");
 
 
-                            if (success) {
-
-                                Toast.makeText(getApplicationContext(), String.format("%s님 가입을 환영합니다.", UserName), Toast.LENGTH_SHORT).show();
-                                Intent intent = new Intent(registerActivity.this, LoginActivity.class);
-                                startActivity(intent);
-
-                                //회원가입 실패시
-                            } else {
-                                Toast.makeText(getApplicationContext(), "회원가입에 실패하였습니다.", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
+//                            if (success) {
+//
+//                                Toast.makeText(getApplicationContext(), String.format("%s님 가입을 환영합니다.", UserName), Toast.LENGTH_SHORT).show();
+//                                Intent intent = new Intent(registerActivity.this, LoginActivity.class);
+//                                startActivity(intent);
+//
+//                                //회원가입 실패시
+//                            } else {
+//                                Toast.makeText(getApplicationContext(), "회원가입에 실패하였습니다.", Toast.LENGTH_SHORT).show();
+//                                return;
+//                            }
 
 
                             //회원가입 성공시
