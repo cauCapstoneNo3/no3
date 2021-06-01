@@ -15,7 +15,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.skt.Tmap.TMapGpsManager;
 import com.skt.Tmap.TMapMarkerItem;
@@ -43,6 +45,9 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
     public ArrayList<Double> tmpLo = new ArrayList<Double>();
     public double startLatitude=0.0;
     public double startLongitude=0.0;
+    public String markerMsg;
+    public TextView markerText;
+    public EditText markerText2;
     public TMapView tMapView;
     private boolean areUTracking = true;
     private TMapGpsManager tmapgps = null;
@@ -125,19 +130,31 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
         tMapView.setOnClickListenerCallBack(new TMapView.OnClickListenerCallback() {
             @Override
             public boolean onPressUpEvent(ArrayList<TMapMarkerItem> arrayList, ArrayList<TMapPOIItem> arrayList1, TMapPoint tMapPoint, PointF pointF) {
-                LinearLayout formarker = (LinearLayout)inflater.inflate(R.layout.formarker, null);
-                LinearLayout.LayoutParams paramll = new LinearLayout.LayoutParams
-                        (LinearLayout.LayoutParams.FILL_PARENT,LinearLayout.LayoutParams.FILL_PARENT);
-                addContentView(formarker, paramll);
-                markerRevisionButton = findViewById(R.id.write_button);
-                markerRevisionButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        ((ViewManager)formarker.getParent()).removeView(formarker);
-                    }
-                });
-
-
+                if(arrayList.size()!=0){
+                    int tmpId = Integer.parseInt(arrayList.get(0).getName());
+                    Log.d("!null", arrayList.get(0).getName());
+                    LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    LinearLayout formarker = (LinearLayout)inflater.inflate(R.layout.formarker, null);
+                    LinearLayout.LayoutParams paramll = new LinearLayout.LayoutParams
+                            (LinearLayout.LayoutParams.FILL_PARENT,LinearLayout.LayoutParams.FILL_PARENT);
+                    addContentView(formarker, paramll);
+//                    markerText = findViewById(R.id.markerContent);
+//                    markerText.setText("");
+                    markerText2 = findViewById(R.id.markerContent);
+                    // USE String type [markerMsg] Var
+                    new markergetAyncTask(tmpDao, tmpId).execute(tmpDao);
+                    markerRevisionButton = findViewById(R.id.write_button);
+                    markerRevisionButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            markerMsg = null;
+                            String inputMsg = markerText2.getText().toString();
+                            Log.d("checkinput",inputMsg);
+                            new markersetAyncTask(tmpDao, tmpId, inputMsg).execute(tmpDao);
+                            ((ViewManager)formarker.getParent()).removeView(formarker);
+                        }
+                    });
+                }
                 //startActivity(intent3);
                 return false;
             }
@@ -151,6 +168,50 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
         });
     }
 
+    class markergetAyncTask extends AsyncTask<locationDao, Void, Void> {
+        String tmpStr = null;
+        int entityId;
+        private locationDao dao;
+        markergetAyncTask(locationDao parDao, int parNum){
+            entityId = parNum;
+            dao = parDao;
+        }
+        @Override
+        protected Void doInBackground(locationDao... locationDaos) {
+            tmpStr = dao.getDataById(entityId).get(0);
+            if (tmpStr!=null) Log.d("get", tmpStr);
+            else Log.d("get", "its null");
+            return null;
+        }
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            Log.d("checkgetmarkeraync1", "1");
+            if(tmpStr!=null) {
+                Log.d("checkgetmarkeraync2", "2");
+                markerMsg = tmpStr;
+                markerText2.setText(markerMsg);
+            }
+        }
+    }
+
+    class markersetAyncTask extends AsyncTask<locationDao, Void, Void>{
+        String tmpStr;
+        int entityId;
+        private locationDao dao;
+        markersetAyncTask(locationDao parDao, int parNum, String parStr){
+            tmpStr = parStr;
+            dao = parDao;
+            entityId = parNum;
+        }
+        @Override
+        protected Void doInBackground(locationDao... locationDaos) {
+            dao.updateTextData(entityId, tmpStr);
+            Log.d("setmakertext",tmpStr);
+            Log.d("setmarkertextchk",dao.getDataById(entityId).get(0));
+            return null;
+        }
+    }
 
     class DrawAsyncTask extends AsyncTask<locationDao, TMapMarkerItem, ArrayList<TMapPolyLine>> {
         Calendar cal = Calendar.getInstance();
@@ -179,7 +240,7 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
                     MC.clear();
                     continue;
                 }
-                if(tmpEntity.getMarkerFlag() == 1) {
+                if(tmpEntity.getMarkerFlag() != 0) {
                     MC.clear();
                     continue;
                 }
@@ -233,7 +294,8 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
                                 }
                             }
                             if (checkExit == true) {
-                                tmpEntity.setMarkerFlag(1);
+                                tmpEntity.setMarkerFlag(tmpEntity.getID());
+                                //tmpEntity.setMarkerFlag(1);
                                 dao.UpdateData(tmpEntity);
                                 //dao.UpdateData(tmpEntity.getID(), tmpEntity.getToday(), 1);
                                 Log.d("marker", "ADDED MARKER");
@@ -241,7 +303,8 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
                             //else Log.d("service", "NON ADDED MARKER");
                         } else {
                             Log.d("marker", "DIRECTLY ADDED MARKER");
-                            tmpEntity.setMarkerFlag(1);
+                            tmpEntity.setMarkerFlag(tmpEntity.getID());
+                            //tmpEntity.setMarkerFlag(1);
                             dao.UpdateData(tmpEntity);
                             //dao.UpdateData(tmpEntity.getID(), tmpEntity.getToday(), 1);
                         }
@@ -266,9 +329,10 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
                     // if (im.setMarkerFlag() ==1){ make marker};
                     tmpLati = im.getLatitude();
                     tmpLogi= im.getLongitude();
-                    if (im.getMarkerFlag()==1){
+                    if (im.getMarkerFlag()!=0){
                         tMapPoint1forMarker = new TMapPoint(tmpLati, tmpLogi);
                         tmpMarker.setTMapPoint(tMapPoint1forMarker);
+                        tmpMarker.setName(String.valueOf(im.getID()));
                         publishProgress(tmpMarker);
                         //tMapView.addMarkerItem("markerNo"+integerForMarker,tmpMarker);
                         //integerForMarker++;
@@ -341,88 +405,6 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
     }
 
 
-    class threadDraw implements Runnable{
-        locationDatabase DB;
-        Context context;
-        Calendar cal = Calendar.getInstance();
-        private locationDao Dao;
-        private String todayDate;
-        private Location location;
-        public threadDraw(locationDao dao){
-            this.Dao = dao;
-        }
-        public void run(){
-            //Dao.insertData(1.0,1.0, todayDate);
-            Log.d("Map","run start");
-
-
-            //check list
-            TMapMarkerItem tmpMarker = new TMapMarkerItem();
-            TMapPoint tMapPoint1forMarker;
-            //Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pin);
-            tmpNum = Dao.getData(tmpDate).size();
-            //else Log.d("test", "is not Empty");
-            double tmpLati;
-            double tmpLogi;
-            int integerForMarker =0;
-            for(locationEntity im :  Dao.getData(tmpDate)){
-                if (im.getToday().equals(tmpDate)){
-                    // if (im.setMarkerFlag() ==1){ make marker};
-                    tmpLati = im.getLatitude();
-                    tmpLogi= im.getLongitude();
-                    if (im.getMarkerFlag()==1){
-                        tMapPoint1forMarker = new TMapPoint(tmpLati, tmpLogi);
-                        tmpMarker.setTMapPoint(tMapPoint1forMarker);
-                        tMapView.addMarkerItem("markerNo"+integerForMarker,tmpMarker);
-                        integerForMarker++;
-                    }
-                    tmpLa.add(tmpLati);
-                    tmpLo.add(tmpLogi);
-                }
-            }
-            startLatitude = tmpLa.get(1);
-            startLongitude = tmpLo.get(1);
-
-
-            if (tmpNum == tmpLo.size()){
-                Log.d("tmpNumChk", "true");
-            } else Log.d("tmpNumChk", "flase");
-
-            ArrayList<TMapPolyLine> polyLinesList = new ArrayList<TMapPolyLine>(1);
-            TMapPolyLine testLine = new TMapPolyLine();
-            polyLinesList.add(testLine);
-            for(TMapPolyLine tmp : polyLinesList){
-                tmp.setLineColor(Color.YELLOW);
-                tmp.setLineWidth(4);
-            }
-            TMapPoint tmpPoint;
-            TMapPolyLine tmpLine = new TMapPolyLine();
-
-            int polyLineCounter =0;
-            for (int i=0; i<tmpLo.size();i++){
-                //Log.d("polyline","in forloop");
-                if (tmpLo.get(i) ==1.0) {
-                    polyLineCounter++;
-                    tmpLine = new TMapPolyLine();
-                    polyLinesList.add(tmpLine);
-                    continue;
-                }
-                else {
-                    tmpPoint = new TMapPoint(tmpLa.get(i),tmpLo.get(i));
-
-                    //tmpLine.addLinePoint(tmpPoint);
-                    polyLinesList.get(polyLineCounter).addLinePoint(tmpPoint);
-                }
-            }
-            tMapView.setCenterPoint(startLongitude, startLatitude);
-            Log.d("polyline", "polylineCounter"+polyLineCounter);
-            //tMapView.addTMapPolyLine("tmp", tmpLine);
-            for(int addpolyline=0; addpolyline < polyLineCounter+1 ; addpolyline++){
-                tMapView.addTMapPolyLine("line"+addpolyline, polyLinesList.get(addpolyline));
-            }
-        }
-    }
-
     public double getDistance(double firstMeanLatitude, double firstMeanLongitude, double secondMeanLatitude, double secondMeanLongitude){
         DecimalFormat df = new DecimalFormat("####.#######");
         double thetaLongitude = firstMeanLongitude - secondMeanLongitude;
@@ -431,100 +413,5 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
         distance = Math.acos(distance); distance = Math.toDegrees(distance); distance = distance*60*1.1515*1.609344;
         distance = Double.valueOf(df.format(distance));
         return distance;
-    }
-
-    class markingThread implements Runnable {
-        locationDao dao;
-        private boolean checkExit = true;
-        private double distaneBetweenMarker = 0.0;
-        int num = 0;
-        int tmpCnt;
-        int accumulator =0;
-        ArrayList<locationEntity> MC;
-
-        public markingThread(locationDao dao, ArrayList<locationEntity> MC) {
-            this.MC =MC;
-            this.dao = dao;
-        }
-
-        @Override
-        public void run() {
-            Log.d("service", "START MARKER DECISION");
-            for(locationEntity tmpEntity : dao.getData(tmpDate)){
-                tmpCnt = MC.size();
-                //int accumulator =0;
-                if(tmpEntity.getAlreadyCHK() == 1) {
-                    MC.clear();
-                    continue;
-                }
-                if(tmpEntity.getLongitude() == 1.0) {
-                    MC.clear();
-                    continue;
-                }
-
-                if (MC.isEmpty()) {
-                    Log.d("marker"," add into empty");
-                    MC.add(tmpEntity);
-                } else if (tmpCnt <= 29){
-                    //Log.d("service","MarkerQueue"+tmpCnt);
-                    MC.add(tmpEntity);
-                } else {
-                    MC.set(accumulator, tmpEntity);
-                    accumulator++;
-                    if(accumulator==29) accumulator=0;
-                }
-
-                if(tmpCnt==30){
-                    locationEntity tmpEntityForPreprocessing;
-                    tmpEntityForPreprocessing = MC.get(0);
-                    tmpEntityForPreprocessing.setAlreadyCHK(1);
-                    dao.UpdateData(tmpEntityForPreprocessing);
-                    double firstMeanLongitude =0.0;
-                    double secondMeanLongitude =0.0;
-                    double firstMeanLatitude = 0.0;
-                    double secondMeanLatitude = 0.0;
-                    for(int i=0;i<15;i++) {
-                        firstMeanLongitude += MC.get(i).getLongitude();
-                        firstMeanLatitude += MC.get(i).getLatitude();
-                    }
-                    for(int i=15;i<30;i++) {
-                        secondMeanLongitude += MC.get(i).getLongitude();
-                        secondMeanLatitude += MC.get(i).getLatitude();
-                    }
-                    DecimalFormat df = new DecimalFormat("#####.########");
-                    firstMeanLatitude = Double.parseDouble(df.format(firstMeanLatitude/15)); secondMeanLatitude = Double.parseDouble(df.format(secondMeanLatitude/15));
-                    firstMeanLongitude = Double.parseDouble(df.format(firstMeanLongitude/15));secondMeanLongitude = Double.parseDouble(df.format(secondMeanLongitude/15));
-                    double distance = getDistance(firstMeanLatitude, firstMeanLongitude, secondMeanLatitude, secondMeanLongitude);
-                    //Log.d("distance"," : "+distance);
-                    //if(distance <100) new Thread(new markerThread(dao, MC.get(29)));
-                    if(distance < 100){
-                        if (!dao.getData(todayDate, 1).isEmpty()) {
-                            //Log.d("service", "MARKER ARR IS NOT EMPTY");
-                            for (locationEntity tmpselect : dao.getData(todayDate, 1)) {
-                                if (checkExit) {
-                                    distaneBetweenMarker = getDistance(tmpEntity.getLatitude(), tmpEntity.getLongitude(), tmpselect.getLatitude(), tmpselect.getLongitude());
-                                    if (distaneBetweenMarker < 100) checkExit = false;
-                                }
-                            }
-                            if (checkExit == true) {
-                                tmpEntity.setMarkerFlag(1);
-                                dao.UpdateData(tmpEntity);
-                                //dao.UpdateData(tmpEntity.getID(), tmpEntity.getToday(), 1);
-                                Log.d("service", "ADDED MARKER");
-                            }
-                            //else Log.d("service", "NON ADDED MARKER");
-                        } else {
-                            Log.d("service", "DIRECTLY ADDED MARKER");
-                            tmpEntity.setMarkerFlag(1);
-                            dao.UpdateData(tmpEntity);
-                            //dao.UpdateData(tmpEntity.getID(), tmpEntity.getToday(), 1);
-                        }
-                    }
-                }
-//                tmpEntity.setAlreadyCHK(1);
-//                dao.UpdateData(tmpEntity);
-            }
-            new Thread(new threadDraw(dao)).start();
-        }
     }
 }
