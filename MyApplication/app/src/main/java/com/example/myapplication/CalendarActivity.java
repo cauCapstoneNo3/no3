@@ -9,16 +9,20 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
 
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.PowerManager;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CalendarView;
@@ -54,11 +58,12 @@ public class CalendarActivity extends AppCompatActivity {
     locationDao tmpDao;
     public int CHKDB=0;
     String todayDate;
+    private android.view.Menu Menu;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        todayDate = todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
+        todayDate = cal.get(Calendar.YEAR)+Integer.toString(cal.get(Calendar.MONTH)+1)+cal.get(Calendar.DATE);
         setContentView(R.layout.activity_calendar);
         calendarView = findViewById(R.id.calendarView);
         record_Btn = findViewById(R.id.record_Btn);
@@ -73,6 +78,7 @@ public class CalendarActivity extends AppCompatActivity {
         //mNotificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
 
         calendarView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
+            @SuppressLint("SetTextI18n")
             @Override
             public void onSelectedDayChange(@NonNull CalendarView view, int year, int month, int dayOfMonth) {
                 chosenDate = Integer.toString(year)+ (month+1) +Integer.toString(dayOfMonth);
@@ -94,7 +100,7 @@ public class CalendarActivity extends AppCompatActivity {
                             stop_Btn.setVisibility(View.INVISIBLE);
                             restart_Btn.setVisibility(View.INVISIBLE);
                         } else if (dayOfMonth == today_day){
-                            textview.setText("");
+                            new chkDateAyncTask(tmpDao, chosenDate,todayDate).execute();
                             record_Btn.setVisibility(View.VISIBLE);
                             map_Btn.setVisibility(View.INVISIBLE);
                             stop_Btn.setVisibility(View.INVISIBLE);
@@ -112,7 +118,7 @@ public class CalendarActivity extends AppCompatActivity {
 //                            }
 //                            CHKDB=0;
                         } else if (dayOfMonth < today_day){
-                            textview.setText("check sqllite");
+                            new chkDateAyncTask(tmpDao, chosenDate,todayDate).execute();
                             record_Btn.setVisibility(View.INVISIBLE);
                             map_Btn.setVisibility(View.VISIBLE);
                             stop_Btn.setVisibility(View.INVISIBLE);
@@ -120,7 +126,11 @@ public class CalendarActivity extends AppCompatActivity {
                         }
                         else textview.setText("ERR");
                         }else if(month < today_month){
-                        textview.setText("check sqllite");
+                        new chkDateAyncTask(tmpDao, chosenDate,todayDate).execute();
+                        record_Btn.setVisibility(View.INVISIBLE);
+                        map_Btn.setVisibility(View.VISIBLE);
+                        stop_Btn.setVisibility(View.INVISIBLE);
+                        restart_Btn.setVisibility(View.INVISIBLE);
                     }else textview.setText("ERR");
                 }else if (year < today_year) {
                     textview.setText("check sqllite");
@@ -211,6 +221,23 @@ public class CalendarActivity extends AppCompatActivity {
                 //stopService(intent2);
             }
         });
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if(item.getItemId() ==R.id.action_btn){
+            Intent i = new Intent(CalendarActivity.this, LoginActivity.class);
+            startActivity(i);
+            finish();
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -255,6 +282,50 @@ public class CalendarActivity extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    class chkDateAyncTask extends AsyncTask<locationDao, Void, Void> {
+        String tmpDate;
+        String todayDate;
+        private locationDao dao;
+        chkDateAyncTask(locationDao parDao, String parStr, String parToday){
+            tmpDate = parStr;
+            dao = parDao;
+            todayDate = parToday;
+        }
+        @RequiresApi(api = Build.VERSION_CODES.M)
+        @Override
+        protected Void doInBackground(locationDao... locationDaos) {
+            if (!tmpDate.equals(todayDate)){
+                if(dao.getData(tmpDate).size() == 0){
+                    textview.setText("기록이 존재하지 않습니다.");
+                    Log.d("choice chk", "no record");
+                } else{
+                    textview.setText("기록 보기");
+                }
+            } else {
+                if(dao.getData(tmpDate).size() == 0){
+                    record_Btn.setVisibility(View.VISIBLE);
+                    map_Btn.setVisibility(View.INVISIBLE);
+                    stop_Btn.setVisibility(View.INVISIBLE);
+                    restart_Btn.setVisibility(View.INVISIBLE);
+                }else{
+                    if(!isMyServiceRunning(map_service.class)){
+                        record_Btn.setVisibility(View.INVISIBLE);
+                        map_Btn.setVisibility(View.VISIBLE);
+                        stop_Btn.setVisibility(View.INVISIBLE);
+                        restart_Btn.setVisibility(View.VISIBLE);
+                    } else{
+                        record_Btn.setVisibility(View.INVISIBLE);
+                        map_Btn.setVisibility(View.VISIBLE);
+                        stop_Btn.setVisibility(View.VISIBLE);
+                        restart_Btn.setVisibility(View.INVISIBLE);
+                    }
+                }
+            }
+
+            return null;
+        }
     }
 
     class threadCHKdb implements Runnable{
