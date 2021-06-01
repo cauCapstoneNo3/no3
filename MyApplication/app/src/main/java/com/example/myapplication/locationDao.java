@@ -19,6 +19,9 @@ public interface locationDao {
     List<locationEntity> getData(String input_day);
     //LiveData<List<locationEntity>> getData(String input_day);
 
+    @Query("SELECT textData FROM locationEntity WHERE ID = :tmp")
+    List<String> getDataById(int tmp);
+
     @Query("SELECT * FROM locationEntity WHERE today LIKE :input_day AND markerFlag == :tmp")
     List<locationEntity> getData(String input_day, int tmp);
 
@@ -28,6 +31,8 @@ public interface locationDao {
     @Update
     public void UpdateData(locationEntity data);
 
+    @Query("UPDATE locationEntity SET textData = :inputStr WHERE ID = :input_id")
+    public void updateTextData(int input_id, String inputStr);
 
     @Query("UPDATE locationEntity SET markerFlag = :tmp WHERE today LIKE :input_day AND ID == :input_id")
     public void UpdateData(int input_id, String input_day, int tmp);
