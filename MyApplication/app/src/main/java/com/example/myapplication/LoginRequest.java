@@ -19,10 +19,14 @@ public class LoginRequest extends StringRequest {
         map = new HashMap<>();
         map.put("UserEmail", UserEmail);
         map.put("UserPwd", UserPwd);
+
     }
+
+
 
     @Override
     protected Map<String, String>getParams() throws AuthFailureError {
         return map;
     }
 }
+

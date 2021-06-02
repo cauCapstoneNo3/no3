@@ -13,12 +13,14 @@ import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Message;
 import android.os.PowerManager;
 import android.util.Log;
 import android.view.Menu;
@@ -35,9 +37,11 @@ import java.security.Permission;
 import java.util.Calendar;
 import java.util.List;
 
+import static android.system.Os.remove;
 import static androidx.legacy.content.WakefulBroadcastReceiver.startWakefulService;
 
 public class CalendarActivity extends AppCompatActivity {
+    SharedPreferences sharedPreferences;
     public CalendarView calendarView;
     public Button map_Btn, stop_Btn, record_Btn, restart_Btn;
     public TextView textview;
@@ -78,6 +82,7 @@ public class CalendarActivity extends AppCompatActivity {
         //mNotificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
 
         calendarView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
+            @RequiresApi(api = Build.VERSION_CODES.M)
             @SuppressLint("SetTextI18n")
             @Override
             public void onSelectedDayChange(@NonNull CalendarView view, int year, int month, int dayOfMonth) {
@@ -100,11 +105,9 @@ public class CalendarActivity extends AppCompatActivity {
                             stop_Btn.setVisibility(View.INVISIBLE);
                             restart_Btn.setVisibility(View.INVISIBLE);
                         } else if (dayOfMonth == today_day){
-                            new chkDateAyncTask(tmpDao, chosenDate,todayDate).execute();
-                            record_Btn.setVisibility(View.VISIBLE);
+                            textview.setText("");
                             map_Btn.setVisibility(View.INVISIBLE);
-                            stop_Btn.setVisibility(View.INVISIBLE);
-                            restart_Btn.setVisibility(View.INVISIBLE);
+                            record_Btn.setVisibility(View.VISIBLE);
 //                            if (CHKDB ==1){
 //                                textview.setText("");
 //                                restart_Btn.setVisibility(View.VISIBLE);
@@ -232,10 +235,17 @@ public class CalendarActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if(item.getItemId() ==R.id.action_btn){
-            Intent i = new Intent(CalendarActivity.this, LoginActivity.class);
-            startActivity(i);
-            finish();
+        switch (item.getItemId()) {
+            case R.id.action_btn:
+                SharedPreferences.Editor editor;
+                sharedPreferences = getSharedPreferences("userInfo", 0);
+                editor = sharedPreferences.edit();
+                editor.putString("existanceUserName", "0");
+                editor.commit();
+
+                Intent i = new Intent(CalendarActivity.this, MainActivity.class);
+                startActivity(i);
+                finish();
         }
         return super.onOptionsItemSelected(item);
     }
@@ -309,18 +319,6 @@ public class CalendarActivity extends AppCompatActivity {
                     map_Btn.setVisibility(View.INVISIBLE);
                     stop_Btn.setVisibility(View.INVISIBLE);
                     restart_Btn.setVisibility(View.INVISIBLE);
-                }else{
-                    if(!isMyServiceRunning(map_service.class)){
-                        record_Btn.setVisibility(View.INVISIBLE);
-                        map_Btn.setVisibility(View.VISIBLE);
-                        stop_Btn.setVisibility(View.INVISIBLE);
-                        restart_Btn.setVisibility(View.VISIBLE);
-                    } else{
-                        record_Btn.setVisibility(View.INVISIBLE);
-                        map_Btn.setVisibility(View.VISIBLE);
-                        stop_Btn.setVisibility(View.VISIBLE);
-                        restart_Btn.setVisibility(View.INVISIBLE);
-                    }
                 }
             }
 
