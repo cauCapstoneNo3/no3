@@ -171,7 +171,9 @@ public class CalendarActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 textview.setText("show map,,,");
-                new Thread(new threadCHKdbforMap(view, intent1, tmpDao, chosenDate)).start();
+                intent1.putExtra("chosendate", chosenDate);
+                startActivity(intent1);
+                //new Thread(new threadCHKdbforMap(view, intent1, tmpDao, chosenDate)).start();
 //                Toast tmpToast = new Toast(view.getContext());
 //                tmpToast.makeText(view.getContext(), " NO DATA STORED ", Toast.LENGTH_SHORT).show();
 
@@ -382,14 +384,16 @@ public class CalendarActivity extends AppCompatActivity {
         }
         @Override
         public void run() {
-            if(!tmpDao.getData(date).isEmpty()){
-                CHKDB =1;
-            }
-            if (CHKDB ==1){
-                intent.putExtra("chosendate", chosenDate);
-                startActivity(intent);
-            } else Log.d("calendar->map btn", "db is empty");
-            CHKDB = 0;
+            intent.putExtra("chosendate", chosenDate);
+            startActivity(intent);
+//            if(tmpDao.getData(date).size()!=0){
+//                CHKDB =1;
+//            }
+//            if (CHKDB ==1){
+//                intent.putExtra("chosendate", chosenDate);
+//                startActivity(intent);
+//            } else Log.d("calendar->map btn", "db is empty");
+//            CHKDB = 0;
         }
     }
 
