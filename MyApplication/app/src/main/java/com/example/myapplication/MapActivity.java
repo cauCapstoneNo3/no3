@@ -180,15 +180,12 @@ public class MapActivity extends AppCompatActivity implements TMapGpsManager.onL
         protected Void doInBackground(locationDao... locationDaos) {
             tmpStr = dao.getDataById(entityId).get(0);
             if (tmpStr!=null) Log.d("get", tmpStr);
-            else Log.d("get", "its null");
             return null;
         }
         @Override
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
-            Log.d("checkgetmarkeraync1", "1");
             if(tmpStr!=null) {
-                Log.d("checkgetmarkeraync2", "2");
                 markerMsg = tmpStr;
                 markerText2.setText(markerMsg);
             }
